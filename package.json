@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start"
+    "start": "next start",
+    "clean": "rm -rf .next node_modules/.cache",
+    "clean:dev": "rm -rf .next node_modules/.cache && next dev --turbopack"
   },
   "dependencies": {
     "react": "19.1.0",
