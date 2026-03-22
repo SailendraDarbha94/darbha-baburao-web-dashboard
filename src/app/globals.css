@@ -13,3 +13,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-playfair), Georgia, serif;
 }
+
+.font-telugu {
+  font-family: var(--font-telugu), "Noto Sans Telugu", sans-serif;
+}

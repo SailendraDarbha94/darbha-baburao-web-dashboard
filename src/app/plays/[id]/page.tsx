@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { plays } from "../../data/plays";
+import { plays } from "@/lib/plays";
 
 export function generateStaticParams() {
   return plays.map((play) => ({ id: play.id }));
@@ -35,9 +35,9 @@ export default async function PlayPage({ params }: { params: Promise<{ id: strin
             {play.year}
           </span>
         )}
-        <h1 className="text-4xl font-bold text-stone-800 mb-8">{play.title}</h1>
+        <h1 className="text-4xl font-bold text-stone-800 mb-8 font-telugu">{play.title}</h1>
 
-        <div className="space-y-6 text-stone-700 leading-relaxed text-lg">
+        <div className="space-y-6 text-stone-700 leading-relaxed text-lg font-telugu">
           {play.content.map((section, i) => (
             <p key={i} className="whitespace-pre-line">{section}</p>
           ))}

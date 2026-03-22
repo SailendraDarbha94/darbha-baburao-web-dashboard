@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, Playfair_Display, Noto_Sans_Telugu } from "next/font/google";
 import Footer from "./components/Footer";
+import Header from "./components/Header";
 import "./globals.css";
 
 const inter = Inter({
@@ -11,6 +12,11 @@ const inter = Inter({
 const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
+});
+
+const notoTelugu = Noto_Sans_Telugu({
+  variable: "--font-telugu",
+  subsets: ["telugu"],
 });
 
 export const metadata: Metadata = {
@@ -25,7 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${playfair.variable} flex min-h-screen flex-col`}>
+      <body className={`${inter.variable} ${playfair.variable} ${notoTelugu.variable} flex min-h-screen flex-col`}>
+        <Header />
         {children}
         <Footer />
       </body>

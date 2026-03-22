@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { poems } from "./data/poetry";
-import { plays } from "./data/plays";
+import { poems } from "@/lib/poetry";
+import { plays } from "@/lib/plays";
 
 export default function Home() {
   return (

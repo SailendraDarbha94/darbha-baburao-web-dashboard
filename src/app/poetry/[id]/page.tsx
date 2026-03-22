@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { poems } from "../../data/poetry";
+import { poems } from "@/lib/poetry";
 
 export function generateStaticParams() {
   return poems.map((poem) => ({ id: poem.id }));
@@ -35,9 +35,9 @@ export default async function PoemPage({ params }: { params: Promise<{ id: strin
             {poem.year}
           </span>
         )}
-        <h1 className="text-4xl font-bold text-stone-800 mb-8">{poem.title}</h1>
+        <h1 className="text-4xl font-bold text-stone-800 mb-8 font-telugu">{poem.title}</h1>
 
-        <div className="space-y-6 text-stone-700 leading-relaxed text-lg">
+        <div className="space-y-6 text-stone-700 leading-relaxed text-lg font-telugu">
           {poem.content.map((stanza, i) => (
             <p key={i} className="whitespace-pre-line">{stanza}</p>
           ))}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { plays } from "../data/plays";
+import { plays } from "@/lib/plays";
 
 export const metadata: Metadata = {
   title: "Plays — Darbha Babu Rao",
@@ -32,10 +32,10 @@ export default function PlaysPage() {
                   {play.year}
                 </span>
               )}
-              <h2 className="text-xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors mb-2">
+              <h2 className="text-xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors mb-2 font-telugu">
                 {play.title}
               </h2>
-              <p className="text-stone-500 text-sm leading-relaxed line-clamp-3">
+              <p className="text-stone-500 text-sm leading-relaxed line-clamp-3 font-telugu">
                 {play.description}
               </p>
               <span className="inline-block mt-4 text-sm text-amber-700 font-medium group-hover:translate-x-1 transition-transform">

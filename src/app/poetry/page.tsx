@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { poems } from "../data/poetry";
+import { poems } from "@/lib/poetry";
 
 export const metadata: Metadata = {
   title: "Poetry — Darbha Babu Rao",
@@ -32,10 +32,10 @@ export default function PoetryPage() {
                   {poem.year}
                 </span>
               )}
-              <h2 className="text-xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors mb-2">
+              <h2 className="text-xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors mb-2 font-telugu">
                 {poem.title}
               </h2>
-              <p className="text-stone-500 text-sm leading-relaxed line-clamp-3">
+              <p className="text-stone-500 text-sm leading-relaxed line-clamp-3 font-telugu">
                 {poem.excerpt}
               </p>
               <span className="inline-block mt-4 text-sm text-amber-700 font-medium group-hover:translate-x-1 transition-transform">
