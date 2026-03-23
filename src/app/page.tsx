@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { poems } from "@/lib/poetry";
-import { plays } from "@/lib/plays";
+import { plays } from "@/lib/talks";
 
 export default function Home() {
   return (
@@ -117,7 +117,7 @@ export default function Home() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-bold text-stone-800 text-center mb-4">Literary Works</h2>
           <p className="text-stone-500 text-center mb-12 max-w-xl mx-auto">
-            Explore the poetry and plays of Darbha Babu Rao.
+            Explore the poetry and talks of Darbha Babu Rao.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Link
@@ -136,18 +136,18 @@ export default function Home() {
               </span>
             </Link>
             <Link
-              href="/plays"
+              href="/talks"
               className="group rounded-xl bg-white border border-stone-200 shadow-sm p-8 hover:shadow-md hover:border-amber-200 transition-all text-center"
             >
               <div className="text-4xl mb-4">&#127917;</div>
               <h3 className="text-2xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors mb-2">
-                Plays
+                Talks
               </h3>
               <p className="text-stone-500 text-sm mb-4">
-                {plays.length} {plays.length === 1 ? "play" : "plays"} in the collection
+                {plays.length} {plays.length === 1 ? "talk" : "talks"} in the collection
               </p>
               <span className="text-sm text-amber-700 font-medium group-hover:translate-x-1 inline-block transition-transform">
-                Browse plays &rarr;
+                Browse talks &rarr;
               </span>
             </Link>
           </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { plays } from "@/lib/plays";
+import { plays } from "@/lib/talks";
 
 export function generateStaticParams() {
   return plays.map((play) => ({ id: play.id }));
@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const play = plays.find((p) => p.id === id);
   return {
-    title: play ? `${play.title} — Plays — Darbha Babu Rao` : "Play Not Found",
+    title: play ? `${play.title} — Talks — Darbha Babu Rao` : "Talk Not Found",
   };
 }
 
@@ -26,8 +26,8 @@ export default async function PlayPage({ params }: { params: Promise<{ id: strin
   return (
     <main className="flex-1 py-16 px-6">
       <article className="mx-auto max-w-3xl">
-        <Link href="/plays" className="text-sm text-amber-700 hover:text-amber-900 transition-colors mb-8 inline-block">
-          &larr; Back to Plays
+        <Link href="/talks" className="text-sm text-amber-700 hover:text-amber-900 transition-colors mb-8 inline-block">
+          &larr; Back to Talks
         </Link>
 
         {play.year && (

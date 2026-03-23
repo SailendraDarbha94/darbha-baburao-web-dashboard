@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { plays } from "@/lib/plays";
+import { plays } from "@/lib/talks";
 
 export const metadata: Metadata = {
-  title: "Plays — Darbha Babu Rao",
-  description: "A collection of plays written by Darbha Babu Rao.",
+  title: "Talks — Darbha Babu Rao",
+  description: "A collection of talks written by Darbha Babu Rao.",
 };
 
-export default function PlaysPage() {
+export default function TalksPage() {
   return (
     <main className="flex-1 py-16 px-6">
       <div className="mx-auto max-w-4xl">
@@ -15,16 +15,16 @@ export default function PlaysPage() {
           &larr; Back to Home
         </Link>
 
-        <h1 className="text-4xl font-bold text-stone-800 mb-3">Plays</h1>
+        <h1 className="text-4xl font-bold text-stone-800 mb-3">Talks</h1>
         <p className="text-stone-500 mb-12">
-          A collection of plays written by Darbha Babu Rao.
+          A collection of talks written by Darbha Babu Rao.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {plays.map((play) => (
             <Link
               key={play.id}
-              href={`/plays/${play.id}`}
+              href={`/talks/${play.id}`}
               className="group rounded-xl bg-white border border-stone-200 shadow-sm p-6 hover:shadow-md hover:border-amber-200 transition-all"
             >
               {play.year && (
@@ -39,7 +39,7 @@ export default function PlaysPage() {
                 {play.description}
               </p>
               <span className="inline-block mt-4 text-sm text-amber-700 font-medium group-hover:translate-x-1 transition-transform">
-                Read play &rarr;
+                Read talk &rarr;
               </span>
             </Link>
           ))}
