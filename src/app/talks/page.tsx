@@ -1,13 +1,27 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { plays } from "@/lib/talks";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebaseConfig";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Talks — Darbha Babu Rao",
   description: "A collection of talks written by Darbha Babu Rao.",
 };
 
-export default function TalksPage() {
+export default async function TalksPage() {
+  const snap = await getDocs(collection(db, "plays"));
+  const plays = snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      title: (data.title as string) ?? "",
+      year: (data.year as string) ?? "",
+      description: (data.description as string) ?? "",
+    };
+  });
+
   return (
     <main className="flex-1 py-16 px-6">
       <div className="mx-auto max-w-4xl">
@@ -20,30 +34,34 @@ export default function TalksPage() {
           A collection of talks written by Darbha Babu Rao.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {plays.map((play) => (
-            <Link
-              key={play.id}
-              href={`/talks/${play.id}`}
-              className="group rounded-xl bg-white border border-stone-200 shadow-sm p-6 hover:shadow-md hover:border-amber-200 transition-all"
-            >
-              {play.year && (
-                <span className="inline-block rounded-full bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 mb-3">
-                  {play.year}
+        {plays.length === 0 ? (
+          <p className="text-stone-400">No talks published yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {plays.map((play) => (
+              <Link
+                key={play.id}
+                href={`/talks/${play.id}`}
+                className="group rounded-xl bg-white border border-stone-200 shadow-sm p-6 hover:shadow-md hover:border-amber-200 transition-all"
+              >
+                {play.year && (
+                  <span className="inline-block rounded-full bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 mb-3">
+                    {play.year}
+                  </span>
+                )}
+                <h2 className="text-xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors mb-2 font-telugu">
+                  {play.title}
+                </h2>
+                <p className="text-stone-500 text-sm leading-relaxed line-clamp-3 font-telugu">
+                  {play.description}
+                </p>
+                <span className="inline-block mt-4 text-sm text-amber-700 font-medium group-hover:translate-x-1 transition-transform">
+                  Read talk &rarr;
                 </span>
-              )}
-              <h2 className="text-xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors mb-2 font-telugu">
-                {play.title}
-              </h2>
-              <p className="text-stone-500 text-sm leading-relaxed line-clamp-3 font-telugu">
-                {play.description}
-              </p>
-              <span className="inline-block mt-4 text-sm text-amber-700 font-medium group-hover:translate-x-1 transition-transform">
-                Read talk &rarr;
-              </span>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );

@@ -1,27 +1,40 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { plays } from "@/lib/talks";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebaseConfig";
 
-export function generateStaticParams() {
-  return plays.map((play) => ({ id: play.id }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const play = plays.find((p) => p.id === id);
+  const snap = await getDoc(doc(db, "plays", id));
+  const title = snap.exists() ? (snap.data().title as string) : undefined;
   return {
-    title: play ? `${play.title} — Talks — Darbha Babu Rao` : "Talk Not Found",
+    title: title ? `${title} — Talks — Darbha Babu Rao` : "Talk Not Found",
   };
 }
 
 export default async function PlayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const play = plays.find((p) => p.id === id);
+  const snap = await getDoc(doc(db, "plays", id));
 
-  if (!play) {
+  if (!snap.exists()) {
     notFound();
   }
+
+  const data = snap.data();
+  const rawContent = data.content;
+  const content: string[] = Array.isArray(rawContent)
+    ? (rawContent as string[])
+    : typeof rawContent === "string" && rawContent.trim()
+    ? [rawContent]
+    : [];
+  const play = {
+    title: (data.title as string) ?? "",
+    year: (data.year as string) ?? "",
+    content,
+  };
 
   return (
     <main className="flex-1 py-16 px-6">

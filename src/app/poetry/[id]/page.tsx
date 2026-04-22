@@ -1,27 +1,40 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { poems } from "@/lib/poetry";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebaseConfig";
 
-export function generateStaticParams() {
-  return poems.map((poem) => ({ id: poem.id }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const poem = poems.find((p) => p.id === id);
+  const snap = await getDoc(doc(db, "poems", id));
+  const title = snap.exists() ? (snap.data().title as string) : undefined;
   return {
-    title: poem ? `${poem.title} — Poetry — Darbha Babu Rao` : "Poem Not Found",
+    title: title ? `${title} — Poetry — Darbha Babu Rao` : "Poem Not Found",
   };
 }
 
 export default async function PoemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const poem = poems.find((p) => p.id === id);
+  const snap = await getDoc(doc(db, "poems", id));
 
-  if (!poem) {
+  if (!snap.exists()) {
     notFound();
   }
+
+  const data = snap.data();
+  const rawContent = data.content;
+  const content: string[] = Array.isArray(rawContent)
+    ? (rawContent as string[])
+    : typeof rawContent === "string" && rawContent.trim()
+    ? [rawContent]
+    : [];
+  const poem = {
+    title: (data.title as string) ?? "",
+    year: (data.year as string) ?? "",
+    content,
+  };
 
   return (
     <main className="flex-1 py-16 px-6">

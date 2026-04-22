@@ -2,14 +2,29 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebaseConfig";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: Integrate Firebase Auth here
+    setError(null);
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push("/admin/dashboard");
+    } catch {
+      setError("Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -23,6 +38,11 @@ export default function AdminLoginPage() {
         <p className="text-stone-500 text-sm mb-8">Sign in to manage the website.</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-700">
+              {error}
+            </p>
+          )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-stone-700 mb-1">
               Email
@@ -55,9 +75,10 @@ export default function AdminLoginPage() {
           </div>
           <button
             type="submit"
-            className="w-full rounded-lg bg-amber-700 text-white font-medium py-2.5 hover:bg-amber-800 active:bg-amber-900 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            disabled={loading}
+            className="w-full rounded-lg bg-amber-700 text-white font-medium py-2.5 hover:bg-amber-800 active:bg-amber-900 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Sign In
+            {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
       </div>
