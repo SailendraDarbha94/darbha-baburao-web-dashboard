@@ -35,7 +35,14 @@ interface Play {
   content: string[];
 }
 
-type TabName = "poems" | "plays";
+interface ComingSoon {
+  id: string;
+  title: string;
+  content: string;
+  type: "poem" | "talk";
+}
+
+type TabName = "poems" | "plays" | "coming-soon";
 
 // ─── Blank forms ─────────────────────────────────────────────────────────────
 
@@ -51,6 +58,12 @@ const blankPlay = (): Omit<Play, "id"> => ({
   year: "",
   description: "",
   content: [],
+});
+
+const blankComingSoon = (): Omit<ComingSoon, "id"> => ({
+  title: "",
+  content: "",
+  type: "poem",
 });
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -252,6 +265,84 @@ function PlayForm({
   );
 }
 
+function ComingSoonForm({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: Omit<ComingSoon, "id"> & { id?: string };
+  onSave: (data: Omit<ComingSoon, "id">) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState({
+    title: initial.title,
+    content: initial.content,
+    type: initial.type,
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    await onSave({ title: form.title, content: form.content, type: form.type });
+    setSaving(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Title</label>
+          <input
+            required
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+            placeholder="శీర్షిక"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Type</label>
+          <select
+            value={form.type}
+            onChange={(e) => setForm({ ...form, type: e.target.value as "poem" | "talk" })}
+            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+          >
+            <option value="poem">Poem</option>
+            <option value="talk">Talk</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-stone-700 mb-1">Content</label>
+        <textarea
+          rows={6}
+          value={form.content}
+          onChange={(e) => setForm({ ...form, content: e.target.value })}
+          className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none resize-y"
+          placeholder="వివరాలు ఇక్కడ..."
+        />
+      </div>
+      <div className="flex gap-3 justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors text-sm font-medium"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className="px-4 py-2 rounded-lg bg-amber-700 text-white text-sm font-medium hover:bg-amber-800 transition-colors disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
@@ -267,11 +358,13 @@ export default function AdminDashboardPage() {
   // Data
   const [poems, setPoems] = useState<Poem[]>([]);
   const [plays, setPlays] = useState<Play[]>([]);
+  const [comingSoonItems, setComingSoonItems] = useState<ComingSoon[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Form state: null = hidden, "new" = new item, string = id of item being edited
   const [poemFormState, setPoemFormState] = useState<null | "new" | string>(null);
   const [playFormState, setPlayFormState] = useState<null | "new" | string>(null);
+  const [comingSoonFormState, setComingSoonFormState] = useState<null | "new" | string>(null);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -321,12 +414,31 @@ export default function AdminDashboardPage() {
     setLoading(false);
   }, []);
 
+  // ── Fetch coming-soon ────────────────────────────────────────────────────────
+  const fetchComingSoon = useCallback(async () => {
+    setLoading(true);
+    const snap = await getDocs(collection(db, "coming-soon"));
+    setComingSoonItems(
+      snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          title: data.title ?? "",
+          content: data.content ?? "",
+          type: data.type === "talk" ? "talk" : "poem",
+        };
+      })
+    );
+    setLoading(false);
+  }, []);
+
   // Fetch when tab changes (once auth is confirmed)
   useEffect(() => {
     if (!user) return;
     if (activeTab === "poems") fetchPoems();
-    else fetchPlays();
-  }, [activeTab, user, fetchPoems, fetchPlays]);
+    else if (activeTab === "plays") fetchPlays();
+    else fetchComingSoon();
+  }, [activeTab, user, fetchPoems, fetchPlays, fetchComingSoon]);
 
   // ── Poem CRUD ───────────────────────────────────────────────────────────────
   async function savePoem(data: Omit<Poem, "id">) {
@@ -362,6 +474,23 @@ export default function AdminDashboardPage() {
     setPlays((prev) => prev.filter((p) => p.id !== id));
   }
 
+  // ── Coming-soon CRUD ─────────────────────────────────────────────────────────
+  async function saveComingSoon(data: Omit<ComingSoon, "id">) {
+    if (comingSoonFormState === "new") {
+      await addDoc(collection(db, "coming-soon"), data);
+    } else if (comingSoonFormState) {
+      await updateDoc(doc(db, "coming-soon", comingSoonFormState), data);
+    }
+    setComingSoonFormState(null);
+    await fetchComingSoon();
+  }
+
+  async function deleteComingSoon(id: string, title: string) {
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    await deleteDoc(doc(db, "coming-soon", id));
+    setComingSoonItems((prev) => prev.filter((c) => c.id !== id));
+  }
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
   async function handleSignOut() {
     await signOut(auth);
@@ -390,6 +519,11 @@ export default function AdminDashboardPage() {
       ? plays.find((p) => p.id === playFormState)
       : null;
 
+  const editingComingSoon =
+    comingSoonFormState && comingSoonFormState !== "new"
+      ? comingSoonItems.find((c) => c.id === comingSoonFormState)
+      : null;
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <main className="flex-1 py-10 px-4 sm:px-8 max-w-4xl mx-auto w-full">
@@ -409,13 +543,14 @@ export default function AdminDashboardPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-stone-200 mb-6">
-        {(["poems", "plays"] as TabName[]).map((tab) => (
+        {(["poems", "plays", "coming-soon"] as TabName[]).map((tab) => (
           <button
             key={tab}
             onClick={() => {
               setActiveTab(tab);
               setPoemFormState(null);
               setPlayFormState(null);
+              setComingSoonFormState(null);
             }}
             className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors capitalize ${
               activeTab === tab
@@ -423,7 +558,7 @@ export default function AdminDashboardPage() {
                 : "text-stone-500 hover:text-stone-700"
             }`}
           >
-            {tab === "poems" ? "Poems (కవితలు)" : "Plays (నాటకాలు)"}
+            {tab === "poems" ? "Poems (కవితలు)" : tab === "plays" ? "Talks (ప్రసంగాలు)" : "Coming Soon (త్వరలో)"}
           </button>
         ))}
       </div>
@@ -560,6 +695,82 @@ export default function AdminDashboardPage() {
                     </button>
                     <button
                       onClick={() => deletePlay(play.id, play.title)}
+                      className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* ── Coming Soon tab ── */}
+      {activeTab === "coming-soon" && (
+        <section>
+          {/* Add button */}
+          {comingSoonFormState === null && (
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setComingSoonFormState("new")}
+                className="px-4 py-2 rounded-lg bg-amber-700 text-white text-sm font-medium hover:bg-amber-800 transition-colors"
+              >
+                + Add Coming Soon
+              </button>
+            </div>
+          )}
+
+          {/* Form */}
+          {comingSoonFormState !== null && (
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-6 mb-6">
+              <h2 className="text-base font-semibold text-stone-700 mb-4">
+                {comingSoonFormState === "new" ? "New Coming Soon" : "Edit Coming Soon"}
+              </h2>
+              <ComingSoonForm
+                initial={editingComingSoon ? { ...editingComingSoon } : blankComingSoon()}
+                onSave={saveComingSoon}
+                onCancel={() => setComingSoonFormState(null)}
+              />
+            </div>
+          )}
+
+          {/* List */}
+          {loading ? (
+            <p className="text-stone-400 text-sm animate-pulse py-4">Loading…</p>
+          ) : comingSoonItems.length === 0 ? (
+            <p className="text-stone-400 text-sm py-4">No coming-soon items yet. Add one above.</p>
+          ) : (
+            <ul className="space-y-2">
+              {comingSoonItems.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between bg-white border border-stone-200 rounded-xl px-4 py-3 gap-4"
+                >
+                  <div className="min-w-0 flex items-center gap-3">
+                    <span
+                      className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
+                        item.type === "poem"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-stone-100 text-stone-600"
+                      }`}
+                    >
+                      {item.type === "poem" ? "Poem" : "Talk"}
+                    </span>
+                    <p className="font-medium text-stone-800 truncate">
+                      {item.title || <span className="text-stone-400 italic">Untitled</span>}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setComingSoonFormState(item.id)}
+                      className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteComingSoon(item.id, item.title)}
                       className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
                     >
                       Delete
