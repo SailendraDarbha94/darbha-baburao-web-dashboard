@@ -16,6 +16,7 @@ import {
   doc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
+import { useToast } from "@/app/components/Toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -347,6 +348,7 @@ function ComingSoonForm({
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const addToast = useToast();
 
   // Auth state
   const [authChecked, setAuthChecked] = useState(false);
@@ -371,10 +373,18 @@ export default function AdminDashboardPage() {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthChecked(true);
-      if (!u) router.replace("/admin/login");
+      if (!u) {
+        router.replace("/admin/login");
+      } else {
+        const flag = sessionStorage.getItem("pending_toast");
+        if (flag === "login_success") {
+          sessionStorage.removeItem("pending_toast");
+          addToast("Welcome back!", "success");
+        }
+      }
     });
     return unsub;
-  }, [router]);
+  }, [router, addToast]);
 
   // ── Fetch poems ─────────────────────────────────────────────────────────────
   const fetchPoems = useCallback(async () => {
@@ -442,59 +452,93 @@ export default function AdminDashboardPage() {
 
   // ── Poem CRUD ───────────────────────────────────────────────────────────────
   async function savePoem(data: Omit<Poem, "id">) {
-    if (poemFormState === "new") {
-      await addDoc(collection(db, "poems"), data);
-    } else if (poemFormState) {
-      await updateDoc(doc(db, "poems", poemFormState), data);
+    const isNew = poemFormState === "new";
+    try {
+      if (isNew) {
+        await addDoc(collection(db, "poems"), data);
+      } else if (poemFormState) {
+        await updateDoc(doc(db, "poems", poemFormState), data);
+      }
+      setPoemFormState(null);
+      await fetchPoems();
+      addToast(isNew ? "Poem added." : "Poem updated.");
+    } catch {
+      addToast("Something went wrong.", "error");
     }
-    setPoemFormState(null);
-    await fetchPoems();
   }
 
   async function deletePoem(id: string, title: string) {
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
-    await deleteDoc(doc(db, "poems", id));
-    setPoems((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await deleteDoc(doc(db, "poems", id));
+      setPoems((prev) => prev.filter((p) => p.id !== id));
+      addToast("Poem deleted.");
+    } catch {
+      addToast("Something went wrong.", "error");
+    }
   }
 
   // ── Play CRUD ───────────────────────────────────────────────────────────────
   async function savePlay(data: Omit<Play, "id">) {
-    if (playFormState === "new") {
-      await addDoc(collection(db, "plays"), data);
-    } else if (playFormState) {
-      await updateDoc(doc(db, "plays", playFormState), data);
+    const isNew = playFormState === "new";
+    try {
+      if (isNew) {
+        await addDoc(collection(db, "plays"), data);
+      } else if (playFormState) {
+        await updateDoc(doc(db, "plays", playFormState), data);
+      }
+      setPlayFormState(null);
+      await fetchPlays();
+      addToast(isNew ? "Talk added." : "Talk updated.");
+    } catch {
+      addToast("Something went wrong.", "error");
     }
-    setPlayFormState(null);
-    await fetchPlays();
   }
 
   async function deletePlay(id: string, title: string) {
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
-    await deleteDoc(doc(db, "plays", id));
-    setPlays((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await deleteDoc(doc(db, "plays", id));
+      setPlays((prev) => prev.filter((p) => p.id !== id));
+      addToast("Talk deleted.");
+    } catch {
+      addToast("Something went wrong.", "error");
+    }
   }
 
   // ── Coming-soon CRUD ─────────────────────────────────────────────────────────
   async function saveComingSoon(data: Omit<ComingSoon, "id">) {
-    if (comingSoonFormState === "new") {
-      await addDoc(collection(db, "coming-soon"), data);
-    } else if (comingSoonFormState) {
-      await updateDoc(doc(db, "coming-soon", comingSoonFormState), data);
+    const isNew = comingSoonFormState === "new";
+    try {
+      if (isNew) {
+        await addDoc(collection(db, "coming-soon"), data);
+      } else if (comingSoonFormState) {
+        await updateDoc(doc(db, "coming-soon", comingSoonFormState), data);
+      }
+      setComingSoonFormState(null);
+      await fetchComingSoon();
+      addToast(isNew ? "Item added." : "Item updated.");
+    } catch {
+      addToast("Something went wrong.", "error");
     }
-    setComingSoonFormState(null);
-    await fetchComingSoon();
   }
 
   async function deleteComingSoon(id: string, title: string) {
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
-    await deleteDoc(doc(db, "coming-soon", id));
-    setComingSoonItems((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await deleteDoc(doc(db, "coming-soon", id));
+      setComingSoonItems((prev) => prev.filter((c) => c.id !== id));
+      addToast("Item deleted.");
+    } catch {
+      addToast("Something went wrong.", "error");
+    }
   }
 
   // ── Sign out ─────────────────────────────────────────────────────────────────
   async function handleSignOut() {
     await signOut(auth);
-    router.replace("/admin/login");
+    addToast("Signed out.", "info");
+    setTimeout(() => router.replace("/admin/login"), 1500);
   }
 
   // ── Loading / auth guard render ──────────────────────────────────────────────

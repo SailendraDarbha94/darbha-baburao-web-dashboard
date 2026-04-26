@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display, Noto_Sans_Telugu } from "next/font/google";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
+import { ToastProvider } from "./components/Toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -32,9 +33,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${playfair.variable} ${notoTelugu.variable} flex min-h-screen flex-col`}>
-        <Header />
-        {children}
-        <Footer />
+        <ToastProvider>
+          <Header />
+          {children}
+          <Footer />
+        </ToastProvider>
       </body>
     </html>
   );

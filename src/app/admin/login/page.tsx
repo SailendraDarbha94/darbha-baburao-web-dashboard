@@ -5,23 +5,24 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
+import { useToast } from "@/app/components/Toast";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const addToast = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      sessionStorage.setItem("pending_toast", "login_success");
       router.push("/admin/dashboard");
     } catch {
-      setError("Invalid email or password. Please try again.");
+      addToast("Invalid email or password.", "error");
     } finally {
       setLoading(false);
     }
@@ -38,11 +39,6 @@ export default function AdminLoginPage() {
         <p className="text-stone-500 text-sm mb-8">Sign in to manage the website.</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-700">
-              {error}
-            </p>
-          )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-stone-700 mb-1">
               Email
