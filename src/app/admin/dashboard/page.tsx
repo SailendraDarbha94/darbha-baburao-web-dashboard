@@ -32,7 +32,7 @@ interface Play {
   id: string;
   title: string;
   year: string;
-  description: string;
+  excerpt: string;
   content: string[];
 }
 
@@ -57,7 +57,7 @@ const blankPoem = (): Omit<Poem, "id"> => ({
 const blankPlay = (): Omit<Play, "id"> => ({
   title: "",
   year: "",
-  description: "",
+  excerpt: "",
   content: [],
 });
 
@@ -184,7 +184,7 @@ function PlayForm({
   const [form, setForm] = useState({
     title: initial.title,
     year: initial.year,
-    description: initial.description,
+    excerpt: initial.excerpt,
     contentRaw: initial.content.join("\n\n"),
   });
   const [saving, setSaving] = useState(false);
@@ -195,7 +195,7 @@ function PlayForm({
     await onSave({
       title: form.title,
       year: form.year,
-      description: form.description,
+      excerpt: form.excerpt,
       content: splitContent(form.contentRaw),
     });
     setSaving(false);
@@ -225,11 +225,11 @@ function PlayForm({
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">Excerpt</label>
         <textarea
           rows={3}
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          value={form.excerpt}
+          onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
           className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none resize-none"
           placeholder="నాటకం సంక్షిప్త వివరణ..."
         />
@@ -363,10 +363,10 @@ export default function AdminDashboardPage() {
   const [comingSoonItems, setComingSoonItems] = useState<ComingSoon[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Form state: null = hidden, "new" = new item, string = id of item being edited
-  const [poemFormState, setPoemFormState] = useState<null | "new" | string>(null);
-  const [playFormState, setPlayFormState] = useState<null | "new" | string>(null);
-  const [comingSoonFormState, setComingSoonFormState] = useState<null | "new" | string>(null);
+  // Form state: null = hidden, "new" = new item, object = item being edited
+  const [poemFormState, setPoemFormState] = useState<null | "new" | Poem>(null);
+  const [playFormState, setPlayFormState] = useState<null | "new" | Play>(null);
+  const [comingSoonFormState, setComingSoonFormState] = useState<null | "new" | ComingSoon>(null);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -398,7 +398,11 @@ export default function AdminDashboardPage() {
           title: data.title ?? "",
           year: data.year ?? "",
           excerpt: data.excerpt ?? "",
-          content: Array.isArray(data.content) ? data.content : [],
+          content: Array.isArray(data.content)
+              ? data.content
+              : typeof data.content === "string" && data.content
+              ? [data.content]
+              : [],
         };
       })
     );
@@ -409,18 +413,21 @@ export default function AdminDashboardPage() {
   const fetchPlays = useCallback(async () => {
     setLoading(true);
     const snap = await getDocs(collection(db, "plays"));
-    setPlays(
-      snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          title: data.title ?? "",
-          year: data.year ?? "",
-          description: data.description ?? "",
-          content: Array.isArray(data.content) ? data.content : [],
-        };
-      })
-    );
+    const result = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        title: data.title ?? "",
+        year: data.year ?? "",
+        excerpt: data.excerpt ?? "",
+        content: Array.isArray(data.content)
+          ? data.content
+          : typeof data.content === "string" && data.content
+          ? [data.content]
+          : [],
+      };
+    });
+    setPlays(result);
     setLoading(false);
   }, []);
 
@@ -456,8 +463,8 @@ export default function AdminDashboardPage() {
     try {
       if (isNew) {
         await addDoc(collection(db, "poems"), data);
-      } else if (poemFormState) {
-        await updateDoc(doc(db, "poems", poemFormState), data);
+      } else if (poemFormState && typeof poemFormState !== "string") {
+        await updateDoc(doc(db, "poems", poemFormState.id), data);
       }
       setPoemFormState(null);
       await fetchPoems();
@@ -484,8 +491,8 @@ export default function AdminDashboardPage() {
     try {
       if (isNew) {
         await addDoc(collection(db, "plays"), data);
-      } else if (playFormState) {
-        await updateDoc(doc(db, "plays", playFormState), data);
+      } else if (playFormState && typeof playFormState !== "string") {
+        await updateDoc(doc(db, "plays", playFormState.id), data);
       }
       setPlayFormState(null);
       await fetchPlays();
@@ -512,8 +519,8 @@ export default function AdminDashboardPage() {
     try {
       if (isNew) {
         await addDoc(collection(db, "coming-soon"), data);
-      } else if (comingSoonFormState) {
-        await updateDoc(doc(db, "coming-soon", comingSoonFormState), data);
+      } else if (comingSoonFormState && typeof comingSoonFormState !== "string") {
+        await updateDoc(doc(db, "coming-soon", comingSoonFormState.id), data);
       }
       setComingSoonFormState(null);
       await fetchComingSoon();
@@ -553,20 +560,14 @@ export default function AdminDashboardPage() {
   if (!user) return null;
 
   // ── Helpers for form initial values ──────────────────────────────────────────
-  const editingPoem =
-    poemFormState && poemFormState !== "new"
-      ? poems.find((p) => p.id === poemFormState)
-      : null;
+  const editingPoem: Poem | null =
+    poemFormState !== null && typeof poemFormState !== "string" ? poemFormState : null;
 
-  const editingPlay =
-    playFormState && playFormState !== "new"
-      ? plays.find((p) => p.id === playFormState)
-      : null;
+  const editingPlay: Play | null =
+    playFormState !== null && typeof playFormState !== "string" ? playFormState : null;
 
-  const editingComingSoon =
-    comingSoonFormState && comingSoonFormState !== "new"
-      ? comingSoonItems.find((c) => c.id === comingSoonFormState)
-      : null;
+  const editingComingSoon: ComingSoon | null =
+    comingSoonFormState !== null && typeof comingSoonFormState !== "string" ? comingSoonFormState : null;
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -629,11 +630,8 @@ export default function AdminDashboardPage() {
                 {poemFormState === "new" ? "New Poem" : "Edit Poem"}
               </h2>
               <PoemForm
-                initial={
-                  editingPoem
-                    ? { ...editingPoem }
-                    : blankPoem()
-                }
+                key={editingPoem ? editingPoem.id : "new"}
+                initial={editingPoem ? { ...editingPoem } : blankPoem()}
                 onSave={savePoem}
                 onCancel={() => setPoemFormState(null)}
               />
@@ -660,7 +658,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
-                      onClick={() => setPoemFormState(poem.id)}
+                      onClick={() => setPoemFormState(poem)}
                       className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 transition-colors"
                     >
                       Edit
@@ -701,11 +699,8 @@ export default function AdminDashboardPage() {
                 {playFormState === "new" ? "New Play" : "Edit Play"}
               </h2>
               <PlayForm
-                initial={
-                  editingPlay
-                    ? { ...editingPlay }
-                    : blankPlay()
-                }
+                key={editingPlay ? editingPlay.id : "new"}
+                initial={editingPlay ? { ...editingPlay } : blankPlay()}
                 onSave={savePlay}
                 onCancel={() => setPlayFormState(null)}
               />
@@ -732,7 +727,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
-                      onClick={() => setPlayFormState(play.id)}
+                      onClick={() => setPlayFormState(play)}
                       className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 transition-colors"
                     >
                       Edit
@@ -773,6 +768,7 @@ export default function AdminDashboardPage() {
                 {comingSoonFormState === "new" ? "New Coming Soon" : "Edit Coming Soon"}
               </h2>
               <ComingSoonForm
+                key={editingComingSoon ? editingComingSoon.id : "new"}
                 initial={editingComingSoon ? { ...editingComingSoon } : blankComingSoon()}
                 onSave={saveComingSoon}
                 onCancel={() => setComingSoonFormState(null)}
@@ -808,7 +804,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
-                      onClick={() => setComingSoonFormState(item.id)}
+                      onClick={() => setComingSoonFormState(item)}
                       className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 transition-colors"
                     >
                       Edit
