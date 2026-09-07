@@ -1,13 +1,8 @@
 import type { ExpoConfig } from "expo/config";
 
-// Values you must set before the first EAS build (README → Deploying):
-//
-// - extra.eas.projectId — printed by `eas init` (run inside apps/mobile after `eas login`). `eas init`
-//   cannot write into a dynamic (.ts) config, so paste it in by hand:
-//     extra: { eas: { projectId: "<uuid printed by eas init>" } }
-//   Until then lib/notifications.ts logs a skip in development and the app runs without push.
+// Remaining setup before Android push works (README → Push notifications):
 // - android.googleServicesFile: "./google-services.json" — add once the file exists (it is gitignored);
-//   Android push registration fails without it. See README → Push notifications.
+//   Android push registration fails without it.
 const config: ExpoConfig = {
   name: "Claims Agent",
   slug: "claims-agent",
@@ -28,6 +23,11 @@ const config: ExpoConfig = {
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
+  },
+  extra: {
+    // Filled in by hand: `eas init` prints the id but cannot write to a dynamic (.ts) config.
+    // lib/notifications.ts reads it when requesting an Expo push token.
+    eas: { projectId: "d62390ba-7d80-4688-944e-1969d69a9815" },
   },
   plugins: [
     "expo-router",

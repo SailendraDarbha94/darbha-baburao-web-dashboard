@@ -188,20 +188,23 @@ with Google Play services can receive push, so remove that guard in `lib/notific
 
 ### One-time setup
 
-1. An Expo account: `npm i -g eas-cli && eas login`.
-2. Inside `apps/mobile`: `eas init`. It prints the project ID but cannot write it into a dynamic config, so
-   paste it into `app.config.ts` as `extra: { eas: { projectId: "<id>" } }` (the comment there shows where).
-   Without it registration is skipped.
-3. iOS: a paid Apple Developer account. `eas build` sets up the APNs key on first run, or run
-   `eas credentials` (iOS → push key) yourself.
-4. Android: FCM V1. In the Firebase console create a project and an Android app, download the service
-   account JSON (Project settings → Service accounts → Generate new private key) and upload it with
-   `eas credentials` (Android → Google Service Account → FCM V1). Also download `google-services.json`, save
-   it as `apps/mobile/google-services.json` (gitignored) and reference it from `app.config.ts` as
-   `android.googleServicesFile: "./google-services.json"`.
+The Expo project already exists and is linked: `extra.eas.projectId` in `app.config.ts`, and
+`ios.bundleIdentifier` / `android.package` are set. What remains is per-developer and per-platform:
 
-`ios.bundleIdentifier` / `android.package` are required for any native build; `app.config.ts` ships
-placeholders that you must replace with your organisation's identifiers (see Deploying).
+1. An Expo account with access to the project: `npm i -g eas-cli && eas login`. (A fresh project would be
+   created with `eas init` inside `apps/mobile`; it prints the id but cannot write to a dynamic config, so
+   the id is pasted into `app.config.ts` by hand.)
+2. Android signing: nothing to do up front. The first `eas build --platform android` offers to generate a
+   keystore and stores it on EAS; `eas credentials` shows it afterwards.
+3. Android push (FCM V1). In the Firebase console create a project and add an Android app whose package name
+   matches `android.package` exactly. Then:
+   - download `google-services.json`, save it as `apps/mobile/google-services.json` (gitignored) and add
+     `android.googleServicesFile: "./google-services.json"` to `app.config.ts`;
+   - Project settings → Service accounts → Generate new private key, then upload that JSON with
+     `eas credentials` (Android → Google Service Account → FCM V1).
+     Without both halves `getExpoPushTokenAsync` fails and registration is skipped.
+4. iOS push: a paid Apple Developer account. `eas build` sets up the APNs key on first run, or run
+   `eas credentials` (iOS → push key) yourself.
 
 ### Building and running a development build
 
