@@ -19,7 +19,10 @@
       "distribution": "internal",
       "environment": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-ME.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://claims-adjustment-system.vercel.app"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
@@ -27,7 +30,7 @@
       "autoIncrement": true,
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-ME.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://claims-adjustment-system.vercel.app"
       }
     }
   },
