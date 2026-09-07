@@ -17,10 +17,14 @@ export default async function AdminLayout({
     <div className="flex min-h-full flex-1 flex-col">
       <header className="border-b">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-6 px-6 py-3">
-          <Link href="/claims" className="font-semibold">
+          <Link href="/" className="font-semibold">
             Claims Admin
           </Link>
           <nav className="flex items-center gap-4 text-sm">
+            {/* The brand link points here too; the explicit item is what makes the overview discoverable. */}
+            <Link href="/" className="hover:underline">
+              Overview
+            </Link>
             <Link href="/claims" className="hover:underline">
               Claims
             </Link>

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { LoginProgress, type LoginPhase } from "@/components/login-progress";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,16 +16,20 @@ import { Label } from "@/components/ui/label";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 // Email/password sign-in against Supabase Auth directly (docs/PLAN.md decision u). @supabase/ssr writes
-// the session cookies; proxy.ts then routes admins to /claims and everyone else to /not-authorised.
+// the session cookies; proxy.ts then routes admins to "/" (the overview) and everyone else to
+// /not-authorised. This page navigates to the same place, so the two cannot disagree and bounce.
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  // An honest three-state phase rather than one `pending` flag: the two waits have very different
+  // lengths and causes, and the overlay says which one the user is in. See components/login-progress.tsx.
+  const [phase, setPhase] = useState<LoginPhase>("idle");
+  const busy = phase !== "idle";
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
+    setPhase("authenticating");
     setError(null);
 
     try {
@@ -39,40 +44,52 @@ export default function LoginPage() {
         // someone whose eyes are on the button rather than on the field.
         setError(signInError.message);
         toast.error("Could not sign in", { description: signInError.message });
-        setPending(false);
+        setPhase("idle");
         return;
       }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
       setError(message);
       toast.error("Could not sign in", { description: message });
-      setPending(false);
+      setPhase("idle");
       return;
     }
 
+    // Sign-in is done; everything from here is the browser fetching "/", which is the long part.
+    setPhase("redirecting");
     // The toaster lives in the root layout, so this survives the navigation below.
     toast.success("Signed in");
+    // The overview at "/", not /claims: that is the admin home now, and it is what the overlay's
+    // "loading your dashboard…" names. proxy.ts sends a signed-in admin on /login to the same path.
+    //
     // A full document navigation rather than router.replace(): a client transition does not commit until
-    // the whole /claims RSC payload has been fetched (the proxy's getUser, then the page's profile and
-    // claims queries — measured at ~4 s warm and ~12 s on a cold function), and until then the browser
-    // stays on this page with the button disabled and nothing moving, which reads as a hang. Handing the
+    // the whole RSC payload has been fetched (the proxy's getUser, then the page's profile and dashboard
+    // queries — measured at ~4 s warm and ~12 s on a cold function), and until then the browser stays on
+    // this page with the button disabled and nothing moving, which reads as a hang. Handing the
     // navigation to the browser shows its own progress immediately, streams the dashboard's loading
     // skeleton as the server renders, and tears this page down so the pending state cannot get stuck.
     // It also guarantees the request carries the cookies @supabase/ssr just wrote, with no router cache
     // to invalidate afterwards.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- deliberate: see above.
-    window.location.assign("/claims");
+    window.location.assign("/");
   }
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
+      {/* `relative` so LoginProgress can cover the card; the card already clips to its own rounding. */}
+      <Card className="relative w-full max-w-sm">
         <CardHeader>
           <CardTitle>Claims Admin</CardTitle>
           <CardDescription>Sign in with your admin account.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          {/* `inert` while busy: the form stays visible under the overlay but cannot be typed into,
+              tabbed to or submitted again, so the covered controls are not reachable by keyboard. */}
+          <form
+            onSubmit={onSubmit}
+            inert={busy}
+            className="flex flex-col gap-4"
+          >
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -102,11 +119,12 @@ export default function LoginPage() {
                 {error}
               </p>
             ) : null}
-            <Button type="submit" disabled={pending}>
-              {pending ? "Signing in…" : "Sign in"}
+            <Button type="submit" disabled={busy}>
+              {busy ? "Signing in…" : "Sign in"}
             </Button>
           </form>
         </CardContent>
+        <LoginProgress phase={phase} />
       </Card>
     </main>
   );

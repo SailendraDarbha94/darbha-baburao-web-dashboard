@@ -54,7 +54,9 @@ export async function proxy(request: NextRequest) {
   const isAdmin = profile?.role === "admin";
 
   if (pathname === "/login") {
-    return redirectTo(isAdmin ? "/claims" : "/not-authorised");
+    // "/" is the admin overview (app/(admin)/page.tsx). app/login/page.tsx navigates to the same path
+    // after a successful sign-in; if these two ever disagree, an admin bounces between them.
+    return redirectTo(isAdmin ? "/" : "/not-authorised");
   }
   if (!isAdmin && !isPublic) {
     return redirectTo("/not-authorised");

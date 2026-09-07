@@ -1,6 +1,7 @@
 import {
   CLAIM_EVENT_TYPES,
   CLAIM_STATUSES,
+  CLAIM_TYPES,
   type AdminClaimDetail,
   type AdminClaimSummary,
   type AdminClaimsQuery,
@@ -193,6 +194,224 @@ export async function listAgentsWithCounts(db: Db): Promise<AgentWithCounts[]> {
       total: Object.values(counts).reduce((sum, n) => sum + n, 0),
     };
   });
+}
+
+// ---------- dashboard overview ----------
+
+/** How many weekly buckets the "created over time" chart covers. */
+const DASHBOARD_WEEKS = 12;
+
+/**
+ * Upper bound on the rows the aggregates are built from. PostgREST also applies the project's own
+ * `max-rows` cap (1000 by default), so the real sample can be smaller; `sampled` vs `total` says so.
+ */
+const DASHBOARD_ROW_LIMIT = 2000;
+
+/**
+ * How many free-form claim_type values outside CLAIM_TYPES get a bar of their own before the rest are
+ * grouped. claim_type is deliberately un-CHECKed text (see the migration and decision c), so without a cap
+ * one typo per agent is one more bar and the chart degrades into hairlines.
+ */
+const DASHBOARD_EXTRA_TYPES = 6;
+
+/** CLAIM_TYPES as a lookup, for telling a picker value apart from a free-form one. */
+const KNOWN_TYPES: ReadonlySet<string> = new Set<string>(CLAIM_TYPES);
+
+/** Everything the overview page at "/" renders, already grouped. */
+export type DashboardMetrics = {
+  /** Exact number of claims the caller can see, from the response's count header (never truncated). */
+  total: number;
+  /** How many rows the aggregates below were built from; less than `total` when the read was capped. */
+  sampled: number;
+  /** Every status in CLAIM_STATUSES, including the ones with no claims. */
+  byStatus: Record<ClaimStatus, number>;
+  /**
+   * Every value in CLAIM_TYPES, then the DASHBOARD_EXTRA_TYPES most common free-form values, then one
+   * "Other (n types)" bucket if anything was left over.
+   */
+  byType: { type: string; count: number }[];
+  /** How many distinct free-form types the "Other" bucket folds together; 0 when there is no bucket. */
+  otherTypes: number;
+  /** Agents that own at least one claim in the sample, busiest first. */
+  byAgent: {
+    id: string;
+    /**
+     * profiles.full_name exactly as stored, so a real profile with a blank name stays blank (the same
+     * choice toAdminClaimSummary makes); "Unknown user" means RLS hid the embed or the row is gone.
+     * Callers that need a non-empty, unique axis label must supply the fallback themselves.
+     */
+    name: string;
+    total: number;
+    counts: Record<ClaimStatus, number>;
+  }[];
+  /** One bucket per ISO week, oldest first; `start` is that week's Monday as "YYYY-MM-DD" (UTC). */
+  createdByWeek: { start: string; count: number }[];
+  /**
+   * Newest claims.updated_at among the `sampled` rows, or null when there are no claims. Because the
+   * sample is ordered by created_at, an old claim touched today can fall outside it — callers must say
+   * "among the most recent claims" whenever `sampled` is less than `total`.
+   */
+  lastActivityAt: string | null;
+};
+
+/**
+ * Aggregates for the dashboard overview (the "/" page). One read: the claim columns the charts need plus
+ * the owning agent's name as an embedded resource, then every grouping is done here in TypeScript. The
+ * page must not fan out into one query per status — that is six round trips to a remote Supabase region
+ * for six integers.
+ *
+ * At scale (tens of thousands of claims) this becomes a SQL view or an RPC that returns the counts
+ * already grouped; today it is one small read and the honest cost is the row cap described above.
+ */
+export async function getDashboardMetrics(db: Db): Promise<DashboardMetrics> {
+  const { data, error, count } = await db
+    .from("claims")
+    .select(
+      "status, claim_type, agent_id, created_at, updated_at, agent:profiles!claims_agent_id_fkey(full_name)",
+      { count: "exact" },
+    )
+    // Newest first, so a capped read samples the rows an admin is most likely to care about.
+    .order("created_at", { ascending: false })
+    .limit(DASHBOARD_ROW_LIMIT);
+  if (error) throw error;
+
+  const byStatus = emptyCounts();
+  const byTypeCounts = new Map<string, number>();
+  for (const type of CLAIM_TYPES) byTypeCounts.set(type, 0);
+  const byAgent = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      total: number;
+      counts: Record<ClaimStatus, number>;
+    }
+  >();
+  const createdByWeek = lastWeekStarts(new Date());
+  let lastActivityAt: string | null = null;
+
+  for (const row of data) {
+    byStatus[row.status] += 1;
+
+    byTypeCounts.set(
+      row.claim_type,
+      (byTypeCounts.get(row.claim_type) ?? 0) + 1,
+    );
+
+    const agent = byAgent.get(row.agent_id) ?? {
+      id: row.agent_id,
+      name:
+        embeddedFullName(row.agent) ?? unknownProfile(row.agent_id).full_name,
+      total: 0,
+      counts: emptyCounts(),
+    };
+    agent.total += 1;
+    agent.counts[row.status] += 1;
+    byAgent.set(row.agent_id, agent);
+
+    // Claims older than the window simply fall outside every bucket.
+    const week = weekStart(row.created_at);
+    const bucketed = createdByWeek.get(week);
+    if (bucketed !== undefined) createdByWeek.set(week, bucketed + 1);
+
+    if (lastActivityAt === null || row.updated_at > lastActivityAt) {
+      lastActivityAt = row.updated_at;
+    }
+  }
+
+  const { types, otherTypes } = summariseTypes(byTypeCounts);
+
+  return {
+    total: count ?? data.length,
+    sampled: data.length,
+    byStatus,
+    byType: types,
+    otherTypes,
+    // Busiest agent first; ties keep a stable, readable order.
+    byAgent: [...byAgent.values()].sort(
+      (a, b) => b.total - a.total || a.name.localeCompare(b.name),
+    ),
+    createdByWeek: [...createdByWeek].map(([start, count_]) => ({
+      start,
+      count: count_,
+    })),
+    lastActivityAt,
+  };
+}
+
+/**
+ * The stored full_name of an embedded `profiles` row from a claims select, or null when there is no row
+ * to read (RLS hid it, or the profile is gone). PostgREST returns one object for a many-to-one embed, but
+ * the generated types have modelled it as an array in the past, so both shapes are accepted.
+ *
+ * A blank name is returned as "" rather than null: that is a readable profile that has no name — the
+ * column is NOT NULL DEFAULT '' — and calling it unknown would be a different, wrong claim.
+ */
+function embeddedFullName(
+  agent: { full_name: string } | { full_name: string }[] | null,
+): string | null {
+  if (agent === null) return null;
+  return Array.isArray(agent) ? (agent[0]?.full_name ?? null) : agent.full_name;
+}
+
+/**
+ * The bars for "Claims by type": the six picker values first, always and in CLAIM_TYPES order so the chart
+ * is stable and a type with no claims still shows a 0, then the most common free-form values, then a
+ * single bucket for the tail. Nothing is dropped — the tail's claims are counted in the bucket.
+ */
+function summariseTypes(counts: ReadonlyMap<string, number>): {
+  types: { type: string; count: number }[];
+  otherTypes: number;
+} {
+  const known = CLAIM_TYPES.map((type) => ({
+    type: type as string,
+    count: counts.get(type) ?? 0,
+  }));
+  // Busiest first, then alphabetically so ties do not reshuffle between renders.
+  const extras = [...counts]
+    .filter(([type]) => !KNOWN_TYPES.has(type))
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+
+  const folded = extras.slice(DASHBOARD_EXTRA_TYPES);
+  const types = [...known, ...extras.slice(0, DASHBOARD_EXTRA_TYPES)];
+  if (folded.length > 0) {
+    types.push({
+      // The count in the label is why this cannot collide with a literal claim_type of "Other".
+      type: `Other (${folded.length} types)`,
+      count: folded.reduce((sum, entry) => sum + entry.count, 0),
+    });
+  }
+  return { types, otherTypes: folded.length };
+}
+
+/** The Monday (UTC) of the week containing `value`, as "YYYY-MM-DD". */
+function weekStart(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  // getUTCDay() is 0 for Sunday; shift so Monday is 0.
+  const offset = (date.getUTCDay() + 6) % 7;
+  return isoDate(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate() - offset,
+    ),
+  );
+}
+
+/** The last DASHBOARD_WEEKS week-start dates ending with `now`'s week, oldest first, all counts zero. */
+function lastWeekStarts(now: Date): Map<string, number> {
+  const current = new Date(`${weekStart(now.toISOString())}T00:00:00Z`);
+  const weeks = new Map<string, number>();
+  for (let back = DASHBOARD_WEEKS - 1; back >= 0; back -= 1) {
+    weeks.set(isoDate(current.getTime() - back * 7 * 24 * 60 * 60 * 1000), 0);
+  }
+  return weeks;
+}
+
+function isoDate(epochMs: number): string {
+  return new Date(epochMs).toISOString().slice(0, 10);
 }
 
 // ---------- helpers ----------
