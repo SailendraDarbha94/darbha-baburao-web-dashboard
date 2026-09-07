@@ -6,9 +6,6 @@ import type { ExpoConfig } from "expo/config";
 //   cannot write into a dynamic (.ts) config, so paste it in by hand:
 //     extra: { eas: { projectId: "<uuid printed by eas init>" } }
 //   Until then lib/notifications.ts logs a skip in development and the app runs without push.
-// - ios.bundleIdentifier / android.package — the values below are PLACEHOLDERS; replace them with your
-//   organisation's reverse-DNS identifiers before creating credentials (they are baked into provisioning
-//   profiles and the Play listing and are hard to change later).
 // - android.googleServicesFile: "./google-services.json" — add once the file exists (it is gitignored);
 //   Android push registration fails without it. See README → Push notifications.
 const config: ExpoConfig = {
@@ -21,10 +18,10 @@ const config: ExpoConfig = {
   userInterfaceStyle: "light",
   ios: {
     supportsTablet: false,
-    bundleIdentifier: "com.example.claimsagent", // PLACEHOLDER — see the comment block above
+    bundleIdentifier: "com.sailendradarbha.claimsagent",
   },
   android: {
-    package: "com.example.claimsagent", // PLACEHOLDER — see the comment block above
+    package: "com.sailendradarbha.claimsagent",
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/android-icon-foreground.png",
