@@ -1,0 +1,2 @@
+-- Local-stack seed (config.toml [db.seed]; loaded by `pnpm db:reset` after the migrations). Intentionally empty:
+-- users come from sign-up and the admin is promoted by hand (README → Promoting an admin).

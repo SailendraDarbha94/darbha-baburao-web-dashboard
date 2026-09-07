@@ -1,0 +1,27 @@
+{
+  "name": "@claims/supabase",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./types.ts",
+    "./browser": "./browser.ts",
+    "./server": "./server.ts",
+    "./service": "./service.ts",
+    "./bearer": "./bearer.ts",
+    "./mobile": "./mobile.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --no-error-on-unmatched-pattern",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.114.0"
+  },
+  "devDependencies": {
+    "@claims/shared": "workspace:*",
+    "eslint": "^9.39.5",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "claims-adjustment-system",
+  "private": true,
+  "packageManager": "pnpm@10.34.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:start": "supabase --workdir packages start",
+    "db:stop": "supabase --workdir packages stop",
+    "db:status": "supabase --workdir packages status",
+    "db:link": "supabase --workdir packages link",
+    "db:new": "supabase --workdir packages migration new",
+    "db:push": "supabase --workdir packages db push --linked",
+    "db:reset": "supabase --workdir packages db reset --local",
+    "db:types": "supabase --workdir packages gen types --lang typescript --linked --schema public > packages/supabase/types.tmp && mv packages/supabase/types.tmp packages/supabase/types.ts",
+    "db:types:local": "supabase --workdir packages gen types --lang typescript --local --schema public > packages/supabase/types.tmp && mv packages/supabase/types.tmp packages/supabase/types.ts"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "turbo": "^2.10.12",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.69.0"
+  }
+}
