@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,16 +37,23 @@ export default function LoginPage() {
         password,
       });
       if (signInError) {
+        // Inline text is the always-visible, accessible signal; the toast is the extra nudge for
+        // someone whose eyes are on the button rather than on the field.
         setError(signInError.message);
+        toast.error("Could not sign in", { description: signInError.message });
         setPending(false);
         return;
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      const message = caught instanceof Error ? caught.message : String(caught);
+      setError(message);
+      toast.error("Could not sign in", { description: message });
       setPending(false);
       return;
     }
 
+    // The toaster lives in the root layout, so this survives the navigation below.
+    toast.success("Signed in");
     // Stay disabled while navigating. refresh() re-renders server components with the new cookies.
     router.replace("/claims");
     router.refresh();

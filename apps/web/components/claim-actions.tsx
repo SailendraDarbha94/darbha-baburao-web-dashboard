@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
+import { toast } from "sonner";
 import {
   NOTE_VISIBILITIES,
   nextStatuses,
@@ -91,7 +92,7 @@ function StatusForm({
         body: { status: next, message: message.trim() || undefined },
       });
       setMessage("");
-    });
+    }, `Status changed to ${STATUS_LABELS[next]}`);
   }
 
   return (
@@ -171,12 +172,19 @@ function AssignForm({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Named here, from the chosen option, because after the refresh the form is remounted by `key`.
+    const chosenAgent = agents.find((agent) => agent.id === assignee);
+    const success =
+      assignee === ""
+        ? "Assignee cleared"
+        : `Claim assigned to ${chosenAgent?.full_name || assignee}`;
+
     void submit.run(async () => {
       await apiFetch<AdminClaimDetail>(`/api/admin/claims/${claimId}/assign`, {
         method: "POST",
         body: { assigned_to: assignee || null },
       });
-    });
+    }, success);
   }
 
   return (
@@ -228,6 +236,11 @@ function NoteForm({ claimId }: { claimId: string }) {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const success =
+      visibility === "internal"
+        ? "Internal note added"
+        : "Note sent to the agent";
+
     void submit.run(async () => {
       await apiFetch<ClaimNote>(`/api/admin/claims/${claimId}/notes`, {
         method: "POST",
@@ -235,7 +248,7 @@ function NoteForm({ claimId }: { claimId: string }) {
       });
       setBody("");
       setVisibility("internal");
-    });
+    }, success);
   }
 
   return (
@@ -294,6 +307,10 @@ function NoteForm({ claimId }: { claimId: string }) {
 /**
  * Pending/error state for one form. `busy` stays true through router.refresh() (a transition) so the
  * form cannot be resubmitted before the refreshed Server Components have replaced the stale ones.
+ *
+ * `successMessage` is what the toast says; each caller passes its own wording (evaluated at call time,
+ * before the action clears the form's fields). Errors are toasted as well as kept inline — the inline
+ * list stays the complete record, including the per-field validation lines.
  */
 function useSubmit() {
   const router = useRouter();
@@ -301,14 +318,21 @@ function useSubmit() {
   const [refreshing, startTransition] = useTransition();
   const [errors, setErrors] = useState<string[]>([]);
 
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>, successMessage: string) {
     setPending(true);
     setErrors([]);
     try {
       await action();
+      toast.success(successMessage);
       startTransition(() => router.refresh());
     } catch (error) {
-      setErrors(describeError(error));
+      const lines = describeError(error);
+      setErrors(lines);
+      const [headline = "Something went wrong. Please try again.", ...rest] =
+        lines;
+      toast.error(headline, {
+        description: rest.length > 0 ? rest.join(" ") : undefined,
+      });
       // A conflict means the claim changed under us (another admin moved it): re-render the Server
       // Components from the current row so the forms offer valid choices, with the error text still shown.
       if (
