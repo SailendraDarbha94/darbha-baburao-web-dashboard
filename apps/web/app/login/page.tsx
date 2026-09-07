@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 // Email/password sign-in against Supabase Auth directly (docs/PLAN.md decision u). @supabase/ssr writes
 // the session cookies; proxy.ts then routes admins to /claims and everyone else to /not-authorised.
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +52,16 @@ export default function LoginPage() {
 
     // The toaster lives in the root layout, so this survives the navigation below.
     toast.success("Signed in");
-    // Stay disabled while navigating. refresh() re-renders server components with the new cookies.
-    router.replace("/claims");
-    router.refresh();
+    // A full document navigation rather than router.replace(): a client transition does not commit until
+    // the whole /claims RSC payload has been fetched (the proxy's getUser, then the page's profile and
+    // claims queries — measured at ~4 s warm and ~12 s on a cold function), and until then the browser
+    // stays on this page with the button disabled and nothing moving, which reads as a hang. Handing the
+    // navigation to the browser shows its own progress immediately, streams the dashboard's loading
+    // skeleton as the server renders, and tears this page down so the pending state cannot get stuck.
+    // It also guarantees the request carries the cookies @supabase/ssr just wrote, with no router cache
+    // to invalidate afterwards.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- deliberate: see above.
+    window.location.assign("/claims");
   }
 
   return (

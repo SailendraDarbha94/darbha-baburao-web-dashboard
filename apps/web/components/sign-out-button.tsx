@@ -1,13 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 export function SignOutButton() {
-  const router = useRouter();
   const [pending, setPending] = useState(false);
 
   async function onClick() {
@@ -24,9 +22,12 @@ export function SignOutButton() {
         description: caught instanceof Error ? caught.message : String(caught),
       });
     }
-    router.replace("/login");
-    // Server components rendered with the old session must re-render without it.
-    router.refresh();
+    // A full document navigation, for the same reason as the sign-in redirect: a client transition would
+    // wait on the proxy round trip before committing, leaving this button reading "Signing out…" for
+    // seconds. It also drops every server-rendered page held in the router cache, so nothing from the old
+    // session can be shown again.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- deliberate: see above.
+    window.location.assign("/login");
   }
 
   return (
